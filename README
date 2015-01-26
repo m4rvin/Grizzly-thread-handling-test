@@ -7,6 +7,7 @@ The server accepts the connection; inserts the clientID (ip+port) and a status f
 The client transfers the file to the server so that it writes the received bytes in a file in the specified destination directory.
 
 WARNING: remember to change the hardly coded pathname of source file and destination folder. (The source file is the same for each client, but the filename is modified appending it an incremental identifier, i.e.: ...1.zip, ...2.zip, ...)
+[look at GrizzlyServer.java and Main.java]
 
 THE PROBLEM is that if you run this code you will see that you will not be able to see all the files created by the server. This is because 2 of the 10 (default created) clients seem to send to the server the same filename. Indeed it seems that the server does not handleRead correctly the message, using an old ByteBuffer... 
 
