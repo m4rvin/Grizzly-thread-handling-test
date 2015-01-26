@@ -1,0 +1,1 @@
+This is a test code to show a possible Grizzly issue in the management of buffers in the handle read of the BaseFilter implementation.
