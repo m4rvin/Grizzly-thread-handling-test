@@ -1,0 +1,59 @@
+APPLICATION PROTOCOL (first step: request to send a file with a given filename):
+-client prepares a FileMetadataObject with the filename it wants to send. 
+-client write 4 byte representing the size of the serialized Object, then write the Object (FileMetadata)
+
+-server receives a connection for each client.
+-server process the handleRead reading the first 4 bytes of the message and then read a serialized JavaObject from the offset 4 (buffer position after an int value) for the size specified in the read int value.
+
+HERE you can see the mismatch:
+-each client ask to send a file with a different filename
+-the server receives 2 messages from different clients asking to send the same filename. (look for file 6.zip and 9.zip in the messages received by the server)
+
+!!!! This seems an issue in the management of the request or the buffer pool (if it exists...) !!!
+
+
+--------------------------------------------
+------------------------------------------------------
+--------------------------------------------------------------
+RESULTS from a sample run
+-------------------------
+
++++ status of the MESSAGES Written by CLIENTS on the first step of the protocol +++
+
+written bytes from clientID /127.0.0.1:46748 =108 (==size of the serialized JavaObject + the FileMetadata object), asking permission to write file: 8.zip
+written bytes from clientID /127.0.0.1:46745 =108 (==size of the serialized JavaObject + the FileMetadata object), asking permission to write file: 6.zip
+written bytes from clientID /127.0.0.1:46750 =108 (==size of the serialized JavaObject + the FileMetadata object), asking permission to write file: 4.zip
+written bytes from clientID /127.0.0.1:46749 =108 (==size of the serialized JavaObject + the FileMetadata object), asking permission to write file: 7.zip
+written bytes from clientID /127.0.0.1:46752 =108 (==size of the serialized JavaObject + the FileMetadata object), asking permission to write file: 0.zip
+written bytes from clientID /127.0.0.1:46746 =108 (==size of the serialized JavaObject + the FileMetadata object), asking permission to write file: 1.zip
+written bytes from clientID /127.0.0.1:46751 =108 (==size of the serialized JavaObject + the FileMetadata object), asking permission to write file: 2.zip
+written bytes from clientID /127.0.0.1:46753 =108 (==size of the serialized JavaObject + the FileMetadata object), asking permission to write file: 5.zip
+written bytes from clientID /127.0.0.1:46747 =108 (==size of the serialized JavaObject + the FileMetadata object), asking permission to write file: 9.zip
+written bytes from clientID /127.0.0.1:46744 =108 (==size of the serialized JavaObject + the FileMetadata object), asking permission to write file: 3.zip
+
+
+
++++ status of the MESSAGES received by SERVER on the first step of the protocol with the clients +++
+
+buffer retrieved by the server from clientID (containing message size and a serialized JavaObject: FileMetadata)/127.0.0.1:46750 = 108
+ It's a request for file 4.zip
+buffer retrieved by the server from clientID (containing message size and a serialized JavaObject: FileMetadata)/127.0.0.1:46752 = 108
+ It's a request for file 0.zip
+buffer retrieved by the server from clientID (containing message size and a serialized JavaObject: FileMetadata)/127.0.0.1:46745 = 108
+ It's a request for file 6.zip
+buffer retrieved by the server from clientID (containing message size and a serialized JavaObject: FileMetadata)/127.0.0.1:46748 = 108
+ It's a request for file 8.zip
+buffer retrieved by the server from clientID (containing message size and a serialized JavaObject: FileMetadata)/127.0.0.1:46747 = 108
+ It's a request for file 9.zip
+buffer retrieved by the server from clientID (containing message size and a serialized JavaObject: FileMetadata)/127.0.0.1:46746 = 108
+ It's a request for file 1.zip
+buffer retrieved by the server from clientID (containing message size and a serialized JavaObject: FileMetadata)/127.0.0.1:46753 = 108
+ It's a request for file 5.zip
+buffer retrieved by the server from clientID (containing message size and a serialized JavaObject: FileMetadata)/127.0.0.1:46751 = 108
+ It's a request for file 2.zip
+buffer retrieved by the server from clientID (containing message size and a serialized JavaObject: FileMetadata)/127.0.0.1:46744 = 108
+ It's a request for file 9.zip
+buffer retrieved by the server from clientID (containing message size and a serialized JavaObject: FileMetadata)/127.0.0.1:46749 = 108
+ It's a request for file 6.zip
+
+
