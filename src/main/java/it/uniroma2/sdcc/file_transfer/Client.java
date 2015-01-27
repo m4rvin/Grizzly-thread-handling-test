@@ -34,8 +34,10 @@ public class Client
 		buff.position(0);
 		
 		System.out.println("message length = " + buff.remaining());
+		int written = 0;
 		while(buff.hasRemaining())
-			System.out.println("written bytes " + sc.write(buff));
+			written += sc.write(buff);
+		System.err.println("written bytes from clientID " + sc.getLocalAddress() + " =" + written + " (==size of the serialized JavaObject + the FileMetadata object), asking permission to write file: " + metadata.filename);
 		
 		buff.clear();
 		

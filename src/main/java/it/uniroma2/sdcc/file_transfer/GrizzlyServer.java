@@ -15,6 +15,8 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.glassfish.grizzly.Buffer;
@@ -40,6 +42,10 @@ public class GrizzlyServer
 	
 	public GrizzlyServer(String hostname, int port)
 	{
+		logger.setLevel(Level.OFF);
+		//FIXME
+		
+		
 		this.hostname = hostname;
 		this.port = port;
 	}
@@ -71,7 +77,7 @@ public class GrizzlyServer
 		public BufferToFileFilter()
 		{
 			logger.info("BufferToFileFilter()");
-			this.clients_status = new HashMap<String, ClientStatus>();
+			this.clients_status = new ConcurrentHashMap<String, ClientStatus>();
 		}
 		
 		private String getClientId(FilterChainContext ctx)
@@ -87,7 +93,7 @@ public class GrizzlyServer
 			logger.info("client host = " + client_id +  " connected");
 			this.clients_status.put(client_id, new ClientStatus());
 			
-			System.out.println("Thread id = "+ Thread.currentThread().getId() + " ctx = " + ctx.toString());
+			//  System.out.println("Thread id = "+ Thread.currentThread().getId() + " ctx = " + ctx.toString());
 			
 			/*StackTraceElement[] stack = Thread.currentThread().getStackTrace();
 			for(StackTraceElement stack_element : stack)
@@ -134,7 +140,7 @@ public class GrizzlyServer
 		public NextAction handleClose(FilterChainContext ctx)
 				throws IOException {
 			//logger.info("client " + getClientId(ctx) + " has close connection!");
-			System.out.println("close() Thread id = "+ Thread.currentThread().getId() + " ctx = " + ctx.toString());
+			//  System.out.println("close() Thread id = "+ Thread.currentThread().getId() + " ctx = " + ctx.toString());
 			
 
 			return super.handleClose(ctx);
@@ -145,7 +151,6 @@ public class GrizzlyServer
 		{
 			
 			Buffer buff = ctx.getMessage();
-		
 			ClientStatus c_status = this.clients_status.get(client_id);
 			
 			Integer buff_size = buff.getInt();
@@ -158,9 +163,12 @@ public class GrizzlyServer
 			try {
 				FileMetadata metadata = (FileMetadata) stream.readObject();
 				logger.info("receive metadata = " + metadata.toString());
-				buff.position(buff.limit());
+				System.err.println("buffer retrieved by the server from clientID (containing message size and a serialized JavaObject: FileMetadata)" + client_id + " = " + buff.capacity() + "\n It's a request for file " + metadata.filename);
+
+				/*buff.position(buff.limit());
 				buff.clear();
-				System.out.println("pos="+ buff.position() + " buff = " + hexEncode(buff.array(), 0, 217));
+				*/
+				//  System.out.println("pos="+ buff.position() + " buff = " + hexEncode(buff.array(), 0, 217));
 				c_status.channel = FileChannel.open(
 						Paths.get(dst_folder_path + metadata.filename), 
 						StandardOpenOption.APPEND, 
