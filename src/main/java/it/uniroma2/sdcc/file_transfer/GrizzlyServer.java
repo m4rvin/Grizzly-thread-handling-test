@@ -15,6 +15,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 import org.glassfish.grizzly.Buffer;
@@ -24,6 +25,7 @@ import org.glassfish.grizzly.filterchain.FilterChainBuilder;
 import org.glassfish.grizzly.filterchain.FilterChainContext;
 import org.glassfish.grizzly.filterchain.NextAction;
 import org.glassfish.grizzly.filterchain.TransportFilter;
+import org.glassfish.grizzly.memory.Buffers;
 import org.glassfish.grizzly.memory.HeapBuffer;
 import org.glassfish.grizzly.nio.transport.TCPNIOTransport;
 import org.glassfish.grizzly.nio.transport.TCPNIOTransportBuilder;
@@ -46,7 +48,10 @@ public class GrizzlyServer
 	
 	private static class BufferToFileFilter extends BaseFilter
 	{
-		private static final String dst_folder_path = "/home/m4rvin/testSDCC/chunks/";
+        private static final byte[] OK_BYTES = "ok".getBytes();
+                
+//		private static final String dst_folder_path = "/home/m4rvin/testSDCC/chunks/";
+		private static final String dst_folder_path = "./";
 		
 		private Map<String, ClientStatus> clients_status;
 
@@ -71,7 +76,7 @@ public class GrizzlyServer
 		public BufferToFileFilter()
 		{
 			logger.info("BufferToFileFilter()");
-			this.clients_status = new HashMap<String, ClientStatus>();
+			this.clients_status = new ConcurrentHashMap<String, ClientStatus>();
 		}
 		
 		private String getClientId(FilterChainContext ctx)
@@ -121,16 +126,6 @@ public class GrizzlyServer
 		}
 		
 		@Override
-		public NextAction handleConnect(FilterChainContext ctx)
-				throws IOException {
-			
-			logger.info("client connected");
-			
-			return super.handleConnect(ctx);
-		}
-		
-		
-		@Override
 		public NextAction handleClose(FilterChainContext ctx)
 				throws IOException {
 			//logger.info("client " + getClientId(ctx) + " has close connection!");
@@ -146,21 +141,33 @@ public class GrizzlyServer
 			
 			Buffer buff = ctx.getMessage();
 		
+                        if (buff.remaining() < 4) {
+                            // Buffer chunk doesn't even contain a length prefix
+                            return ctx.getStopAction(buff);
+                        }
+                        
 			ClientStatus c_status = this.clients_status.get(client_id);
 			
-			Integer buff_size = buff.getInt();
+			int buff_size = buff.getInt(buff.position());
 			logger.info("metadata size = " + buff_size);
 			
+                        if (buff.remaining() < buff_size + 4) {
+                            // Buffer doesn't contain the entire metadata
+                            return ctx.getStopAction(buff);
+                        }
 			
-			
-			ByteArrayInputStream byte_array = new ByteArrayInputStream(buff.array(), 4, buff_size);
+			// Here we're sure the metadata info is complete
+			ByteArrayInputStream byte_array =
+                                new ByteArrayInputStream(
+                                        buff.array(),
+                                        buff.arrayOffset() + buff.position() + 4,
+                                        buff_size);
 			ObjectInputStream stream = new ObjectInputStream(byte_array);
 			try {
 				FileMetadata metadata = (FileMetadata) stream.readObject();
 				logger.info("receive metadata = " + metadata.toString());
-				buff.position(buff.limit());
-				buff.clear();
-				System.out.println("pos="+ buff.position() + " buff = " + hexEncode(buff.array(), 0, 217));
+                                
+//				System.out.println("pos="+ buff.position() + " buff = " + hexEncode(buff.array(), 0, 217));
 				c_status.channel = FileChannel.open(
 						Paths.get(dst_folder_path + metadata.filename), 
 						StandardOpenOption.APPEND, 
@@ -172,8 +179,10 @@ public class GrizzlyServer
 			{
 				e.printStackTrace();
 			}
+                        
+                        buff.dispose();
 			
-			ctx.write(HeapBuffer.wrap(new String("ok").getBytes()));
+			ctx.write(Buffers.wrap(ctx.getMemoryManager(), OK_BYTES));
 			c_status.status = STATE.TRANSFER;
 			return ctx.getStopAction();
 		}
@@ -185,6 +194,8 @@ public class GrizzlyServer
 			ClientStatus c_status = this.clients_status.get(client_id);
 			c_status.channel.write(buff.toByteBuffer());
 			//this.sync_file_ch.write(buff.toByteBuffer());
+                        
+                        buff.dispose();
 			return ctx.getStopAction();
 		}
 		
