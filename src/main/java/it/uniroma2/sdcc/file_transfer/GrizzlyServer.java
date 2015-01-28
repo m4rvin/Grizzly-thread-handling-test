@@ -153,12 +153,13 @@ public class GrizzlyServer
 			Buffer buff = ctx.getMessage();
 			ClientStatus c_status = this.clients_status.get(client_id);
 			
-			Integer buff_size = buff.getInt();
+			//explicit buffer position
+			Integer buff_size = buff.getInt(buff.position());
 			logger.info("metadata size = " + buff_size);
 			
 			
-			
-			ByteArrayInputStream byte_array = new ByteArrayInputStream(buff.array(), 4, buff_size);
+			//explicit offset
+			ByteArrayInputStream byte_array = new ByteArrayInputStream(buff.array(), buff.arrayOffset() + buff.position() +4, buff_size);
 			ObjectInputStream stream = new ObjectInputStream(byte_array);
 			try {
 				FileMetadata metadata = (FileMetadata) stream.readObject();
